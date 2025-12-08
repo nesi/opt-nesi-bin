@@ -76,7 +76,7 @@ for job in jobs:
 
     jobid = job['job_id']
     user = job['association']['user']
-    state = job['state']['current']
+    state = ' '.join(job['state']['current'])
     ncpus = ex_tres(job['tres']['allocated'], 'cpu', 0)
 
     if state=="RUNNING" or ncpus == 0 or 'fffffff' in hex(ncpus):
