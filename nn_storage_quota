@@ -1,139 +1,92 @@
 #!/bin/bash
-
-#----------------------------------------------------------------------------
-# Description   : Report Spectrum Scale quota 
+# nn_storage_quota
+# matt.pestle@nesi.org.nz
+# Mar 2025
 #
+# script to mimic the old nn_storage_quota, but use
+# only the df command in real time. Weka does not enforce limits
+# on inodes, so we are abandoning the reporting of inode usage.
 #
-# Author        : Fabrice Cantos <fabrice.cantos@niwa.co.nz>
-# Creation date : Sep 6 2018
-# Updated       :
-#               :
-# Dependencies  :
-# System dep.   : scale
-# ui            :
-#----------------------------------------------------------------------------
-
-
-#----------------------------------------------------------------------------
-# Initialisation,  parameters
+# df is intercepted by weka and reports disk usage and capacity
+# relative to the soft limit of any quota on the directory.
+# (We have specifically requested this change of weka from the default
+# which calculcates relatives to the hard limit).
+# df also runs much more efficiently than querying weka, which also
+# requires authentication to the weka system, which normal users
+# cannot do.
 #
-CWD=`basename $0`
-HOST_TYPE="`uname -p`-`uname -s`"
+# No arguments call is to report on the calling user's projects
+# and $HOME directory.
+# We report on project data, then nobackup data, then the user's
+# home directory.
+#
+# Note that if anything is over the soft quota, df reports this
+# as 100%, and usage as the soft quota - which is inaccurate
+# in terms of disk usage (they will be using more than that),
+# but sufficient for these purposes. For exact usage, you have
+# to use "du", or authenticate to weka and query the weka
+# system for usage. (see nn_storage_quotaw)
 
-if [[ "${0}" == */nn_check_quota ]]
-then
-	echo "The name \"nn_check_quota\" for this script is now deprecated."
-	echo "Please use \"nn_storage_quota\" instead."
-	sleep 3
-fi
+((bs=1024*1024*1024)) # We will work in GiB
+((cvt=1))
 
-# Log & Email parms...
-# LOG_VERBOSITY=0   standart
-# LOG_VERBOSITY=1   send by email info to users
-# LOG_VERBOSITY=2   send by email info to users and admin
-LOG_VERBOSITY=1
-LOG_NAME=""
-#LOG_DIRECTORY="/var/log/"
-#ETO="platform.admin@nesi.org.nz"
-ESubjectError="$(hostname -s) - mmcrsnapshot - FAILURE"
-ESubject="$(hostname -s) - mmcrsnapshot - REPORT"
+NESI_HOME=/home
+# Assumes/hardcodes /nesi/project and /nesi/nobackup as basedirs
+# for project and scratch
 
-
-TheHelp ()
-{
-cat << EndOfHelp
-
-        [1m$CWD[0m
-
-[1mSYNOPSIS[0m
-        $CWD [-h] [-p project_id] [-u username]
-
-[1mDESCRIPTION[0m
-        This is a NeSI NIWA custom quota reporting 
-
-[1mEXAMPLES[0m
-        $CWD
-
-
-[1mRETURN[0m
-
-[1mPARAMETERS[0m
-
-        -h --help              This help.
-        
-	-p --project           Not implemented - project to check quota (only for NeSI Admins)
-        
-	-u --user <username>   Username to check quota. Restriction may apply
-
-
-SEE ALSO
-
-EndOfHelp
-
-exit 0
+function print_usage() {
+	echo "Usage: $0 [-h] [-p <project>] [-u <user>]"
+	echo
+	echo "       -h, --help              this help message"
+	echo "       -p, --project <project> Show quotas for a named project"
+	echo "       -u, --user    <user>    Show quotas for a named user"
+	echo "With no args, all the calling user's projects and \$HOME will be reported"
 }
 
+# Default call is for the calling user's information
+((DO_HOME=1))
+U=$(id -un)
+GROUP_LIST=$(id -Gn)
 
+(($#>0)) && case "$1" in
+-h|--help|-help)
+	print_usage "help message"
+	exit 0
+	;;
+-p|--project)
+	((DO_HOME=0))
+	GROUP_LIST=$2
+	;;
+-u|--user)
+	U=$(id -un $2) || exit 1
+	GROUP_LIST=$(id -Gn $2)
+	;;
+*)
+	print_usage "help message"
+	exit 0
+	;;
+esac
 
+HEADER="Quota_Location AvailableGiB UsedGiB Use%"
 
-#==============================================================================
-readParameters ()
-{
-    # Variable to fill
-    #-----------------
-    PROJECT_TO_CHECK=""
+format_string="%-34.34s%18.18s%18.18s%5.5s\n"
+echo "$HEADER" | awk -v format_string="$format_string" '{printf(format_string,$1,$2,$3,$4)}'
 
-    # Read parameters
-    #----------------
-    #if [ $# -eq 0 ]; then TheHelp $0; fi
-
-    while [ $# -gt 0 ]
+format_string="%-34.34s%18.0f%18.0f%5.0f\n"
+for d in project nobackup
+do
+    for g in $GROUP_LIST
     do
-        case $1 in
-
-            -u | --user	) shift ; USER_TO_CHECK=$1;;
-
-            -h | --help ) TheHelp $0;;
-
-            -p | --project ) shift ; PROJECT_TO_CHECK=$1;;
-
-            -*) echo "Unknown option [1m$1[0m"
-            exit 1;;
-
-            *) break ;;
-        esac
-        shift
+        [[ -d "/nesi/$d/$g" ]] && {
+            RPT=$(df --block-size=$bs "/nesi/$d/$g" --output=size,used,pcent | tail -1)
+            echo ${d}_${g} "$RPT" | awk -v format_string="$format_string" '{printf(format_string,$1,$2,$3,$4)}'
+        }
     done
+done
 
-}
+((DO_HOME)) || exit 0 # Done, unless we're doing somebody's $HOME
 
+[[ -d "$NESI_HOME/$U" ]] || exit 0 # No $HOME, quit
 
-#==============================================================================
-main ()
-{
-
-	USER_TO_CHECK=$USER
-
-	readParameters "$@"
-
-    #Project or nobackup to check 
-    if [ "$PROJECT_TO_CHECK" != "" ] && [ -r /scale_wlg_persistent/filesets/opt_nesi/var/quota/users/$USER_TO_CHECK ]; then 
-    
-        cat /scale_wlg_persistent/filesets/opt_nesi/var/quota/project/*_$PROJECT_TO_CHECK
-        cat /scale_wlg_persistent/filesets/opt_nesi/var/quota/nobackup/*_$PROJECT_TO_CHECK
-
-	test -e /scale_wlg_persistent/filesets/opt_nesi/var/quota/nearline/*_$PROJECT_TO_CHECK && cat /scale_wlg_persistent/filesets/opt_nesi/var/quota/nearline/*_$PROJECT_TO_CHECK
-
-    else 
-        # home directory
-	    if [ -r /scale_wlg_persistent/filesets/opt_nesi/var/quota/users/$USER_TO_CHECK ]; then 
-    		
-		    cat /scale_wlg_persistent/filesets/opt_nesi/var/quota/users/$USER_TO_CHECK
-    	fi
-    fi
-
-
-}
-
-main "$@" 
-
+RPT=$(df --block-size=$bs "$NESI_HOME/$U" --output=size,used,pcent | tail -1)
+echo home_$U "$RPT" | awk -v format_string="$format_string" '{printf(format_string,$1,$2,$3,$4)}'

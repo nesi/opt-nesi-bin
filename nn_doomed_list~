@@ -7,6 +7,8 @@ import pwd
 from collections import defaultdict, Counter
 import argparse
 
+POLICY = os.path.join('.policy', 'to_delete', 'latest.filelist.gz')
+
 class Directory(object):
     def __init__(self, paths):
         self.paths = paths
@@ -59,18 +61,9 @@ parser = argparse.ArgumentParser(description='Processing to_delete files')
 parser.add_argument('--project', '-p', nargs='?', dest='Projects', help='Comma-separated list of projects to process. If not given, process all projects of which the user is a member')
 parser.add_argument('--unlimited','-u', dest='Unlimited', action='store_true', help='Do not limit the length of the output file')
 parser.add_argument('--limit', '-l', type=int, default=40, dest='LengthLimit', help='Maximum length of the output file (lines)')
-parser.add_argument('--cycle', '-c', dest='Cycle', default='current', choices = ['current', 'last'], help = 'Cycle identifier')
 #parser.add_argument('--useronly','-o', dest='UserOnly', action='store_true', help='Check project directories only for the current user')
 
 args = parser.parse_args()
-
-policies = {
-    "current": "/search/autocleaner/filelists/current",
-    "last"   : "/search/autocleaner/filelists/last"
-}
-
-POLICY = policies[args.Cycle]
-
 limit = args.LengthLimit
 if args.Unlimited:
     limit=None
@@ -91,7 +84,7 @@ for p in projects:
     base = dir
     while base:
         #policy_fn = os.path.join(base, POLICY)
-        policy_fn = os.path.join(POLICY,f"{p}.gz")
+        policy_fn = os.path.join("/search/autocleaner/filelists",f"{p}.gz")
         if os.path.exists(policy_fn):
             to_delete = set(l.strip()[s:] for l in gzip.open(policy_fn, mode='rt') if l.startswith(dir))
             break

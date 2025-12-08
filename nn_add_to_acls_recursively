@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Deprecation note added May 2025 upon move to rebase/HPC3
+# matt.pestle@nesi.org.nz
+echo "Deprecated - We are no longer using gpfs. Use"
+echo "     setfacl -R <-X|-M acl_file> <file_or_dir>"
+echo "See man setfacl for details"
+exit 1
+
 function print_usage_and_exit() {
 	${ECHO} "Usage:"
 	${ECHO} ""

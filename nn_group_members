@@ -47,13 +47,13 @@ do
 		continue
 	fi
 
-	echo "${user_details}" | egrep "^ *Password: False *$" > /dev/null
-	if [ $? -eq 0 ]
-	then
-		user_string="${user_string} (no password set)"
-		inactive_users=( "${inactive_users[@]}" "${user_string}" )
-		continue
-	fi
+#	echo "${user_details}" | egrep "^ *Password: False *$" > /dev/null
+#	if [ $? -eq 0 ]
+#	then
+#		user_string="${user_string} (no password set)"
+#		inactive_users=( "${inactive_users[@]}" "${user_string}" )
+#		continue
+#	fi
 	active_users=( "${active_users[@]}" "${user_string}" )
 done
 
