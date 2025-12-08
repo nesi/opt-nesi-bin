@@ -133,9 +133,9 @@ for job in jobs:
     else:
         cpu_eff = 0.0
 
-    print("Job Wall-time:  {: >5.1f}%  {} of {} time limit".format(
+    print("Job Wall-time:   {: >5.1f}%  {} of {} time limit".format(
         100*walltime/timelimit, time2str(walltime), time2str(timelimit)))
-    print("CPU Efficiency: {: >5.1f}%  {} of {} core-walltime".format(
+    print("CPU Utilisation: {: >5.1f}%  {} of {} core-walltime".format(
         cpu_eff, time2str(cput), time2str(corewalltime)))
 
     if reqmem:
@@ -144,9 +144,9 @@ for job in jobs:
         mem_eff = 0.0
 
     if ntasks == 1:
-        print("Mem Efficiency: {: >5.1f}%  {} of {}".format(
+        print("Mem Utilisation: {: >5.1f}%  {} of {}".format(
             mem_eff, *map(kbytes2str, [mem, reqmem])))
     else:
         (denom, desc) = (nnodes, 'node') if pernode else (ntasks, 'task')
-        print("Mem Efficiency: {: >5.1f}%  {} ({} to {} / {desc}) of {} ({}/{desc})".format(
+        print("Mem Utilisation: {: >5.1f}%  {} ({} to {} / {desc}) of {} ({}/{desc})".format(
             mem_eff, *map(kbytes2str, [mem, min_mem, max_mem, reqmem, reqmem / denom]), desc=desc))
