@@ -29,10 +29,8 @@ def sacct(*args):
     return json.loads(p.stdout)
 
 def ex_tres(objs, name, default=None, field='count'):
-    tres = {m['type']: m[field] for m in objs}
-    if name not in tres and default is not None:
-        return default
-    return tres[name]
+    tres = {m['name' if m['type']=='gres' else 'type']: m[field] for m in objs}
+    return tres.get(name, default)
 
 (opts, args) = getopt.getopt(sys.argv[1:], 'hvdfj:M:')
 opts = dict(opts)
@@ -76,7 +74,7 @@ for job in jobs:
 
     jobid = job['job_id']
     user = job['association']['user']
-    state = job['state']['current']
+    state = ' '.join(job['state']['current'])
     ncpus = ex_tres(job['tres']['allocated'], 'cpu', 0)
 
     if state=="RUNNING" or ncpus == 0 or 'fffffff' in hex(ncpus):
@@ -133,9 +131,9 @@ for job in jobs:
     else:
         cpu_eff = 0.0
 
-    print("Job Wall-time:  {: >5.1f}%  {} of {} time limit".format(
+    print("Job Wall-time:   {: >5.1f}%  {} of {} time limit".format(
         100*walltime/timelimit, time2str(walltime), time2str(timelimit)))
-    print("CPU Efficiency: {: >5.1f}%  {} of {} core-walltime".format(
+    print("CPU Utilisation: {: >5.1f}%  {} of {} core-walltime".format(
         cpu_eff, time2str(cput), time2str(corewalltime)))
 
     if reqmem:
@@ -144,9 +142,19 @@ for job in jobs:
         mem_eff = 0.0
 
     if ntasks == 1:
-        print("Mem Efficiency: {: >5.1f}%  {} of {}".format(
+        print("Mem Utilisation: {: >5.1f}%  {} of {}".format(
             mem_eff, *map(kbytes2str, [mem, reqmem])))
     else:
         (denom, desc) = (nnodes, 'node') if pernode else (ntasks, 'task')
-        print("Mem Efficiency: {: >5.1f}%  {} ({} to {} / {desc}) of {} ({}/{desc})".format(
+        print("Mem Utilisation: {: >5.1f}%  {} ({} to {} / {desc}) of {} ({}/{desc})".format(
             mem_eff, *map(kbytes2str, [mem, min_mem, max_mem, reqmem, reqmem / denom]), desc=desc))
+
+    if (gpuutil := ex_tres(the_usage['total'], 'gpuutil', None)) is not None:
+        print("GPU Utilisation: {: >3.0f}  %".format(gpuutil))
+    if (gpumem := ex_tres(the_usage['total'], 'gpumem', None)) is not None:
+        a100_gb = 40 if job['partition'] == 'genoa' else 80
+        alloc = sum(mem * ex_tres(job['tres']['allocated'], 'gpu:'+kind, 0) for (kind, mem) in [('l4', 23), ('a100', a100_gb), ('h100', 94)])
+        if alloc:
+            print("GPU Memory:      {: >5.1f}%  {} of {} GB".format(100*gpumem/(alloc*(1024**3)), kbytes2str(gpumem/1024), alloc))
+        else:
+            print("GPU Memory:", " "*12, kbytes2str(gpumem/1024))
