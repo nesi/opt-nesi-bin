@@ -70,6 +70,9 @@ policies = {
 }
 
 POLICY = policies[args.Cycle]
+if not os.path.isdir(POLICY):
+    print("file list not found. nn_doomed_list command works only on login03")
+    exit(1)
 
 limit = args.LengthLimit
 if args.Unlimited:
