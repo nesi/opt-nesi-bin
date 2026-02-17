@@ -1,0 +1,23 @@
+#!/bin/bash
+# matt.pestle@nesi.org.nz
+# April 2025
+# Remove the .sudosh_allow semaphore file in the calling user's
+# $HOME directory, and run 
+#       sudosh-grp -d
+# as root (who has access to the ipa admin password), which
+# should remove the user from the "impersonated" group, thereby
+# prohibiting them from being impersonated.
+
+(($#==0)) || {
+        echo "arguments not allowed"
+        exit 1
+}
+
+BIN_DIR=$(dirname `readlink -f $0`)
+
+rm -f $HOME/.sudosh_allow || {
+        echo "Unable to create semaphore file $HOME/.sudosh_allow - giving up"
+        exit 1
+}
+
+sudo $BIN_DIR/sudosh-grp -d $USER

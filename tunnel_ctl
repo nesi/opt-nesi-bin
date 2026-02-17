@@ -1,0 +1,203 @@
+#!/bin/bash
+# matt.pestle@nesi.org.nz
+# Dec 2024
+# Resides in repo
+# https://gitlab.com/nesi1/compute-appliances/nesi-tools.git
+# Control the cloudflare tunnel for accessing the DBs on the VPN
+# (or any other cloudflare tunnel reason)
+#    "Usage: $0 [-f <configfile>] <up|down|status|clean>"
+#
+# Environment:
+# These variables must be set and exported in the calling environment:
+#    TUNNEL_SERVICE_HOSTNAME
+#    TUNNEL_SERVICE_TOKEN_ID
+#    TUNNEL_SERVICE_TOKEN_SECRET
+# You will get them from Somesh, or whoever set up the tunnel for you.
+# Alternatively, put those values into a config file and use the -f option
+#
+# ============== sample config file =============================
+# export TUNNEL_SERVICE_HOSTNAME="mahuika-cni-prodenv-dl.nznesi.io"
+# export TUNNEL_SERVICE_URL="0.0.0.0:5432"
+# export TUNNEL_SERVICE_TOKEN_ID="b8fc*****************.access"
+# export TUNNEL_SERVICE_TOKEN_SECRET="8d31f7d99*****************"
+# ===============================================================
+#
+# TUNNEL_SERVICE_URL governs what the tunnel binds to:
+# default is localhost:5432
+# You can use 0.0.0.0:5432 if you want to broaden that and allow other
+# things to connect to you as though you were the remote endpoint, but consider the
+# security implications - you are a window into the 
+# other end of the tunnel. Probably best to not leave this tunnel
+# running, and to minimize who can talk to you.
+#
+# You can run multiple tunnels simultaneously, but you'll need to provide
+# different ports, obviously.
+# The -f option might be useful in these circumstances.
+#
+# PID_DIR and LOG_DIR govern where the PID file and the log file get
+# placed. These will be created if not already there. Defaults are
+#  ~/var and ~/log
+#
+# cloudflared needs to be installed first. Something like:
+#    sudo dnf config-manager --add-repo https://pkg.cloudflare.com/cloudflared-ascii.repo
+#    sudo dnf install cloudflared
+#
+
+# Get the cloudflared location. If not installed "locally" (this may be being called
+# from jupyterlab?) then use the copy in the same directory as this script, which
+# hopefully will work. This could be dodgy.
+CLOUDFLARED_EXE=$(which cloudflared 2> /dev/null) || {
+	CF_EXE_DEFAULT=$(dirname `readlink -f $0`)/cloudflared
+	CLOUDFLARED_EXE="${CLOUDFLARED_EXE:=$CF_EXE_DEFAULT}"
+}
+
+# Default to turning localhost into the DB server
+
+function print_usage {
+	echo "Usage: $0 [-f <configfile.txt>] <up|down|status|clean>"
+}
+
+case $1 in
+  "-?" | "--help" | "-h")
+	echo aaa $1
+	print_usage
+	exit 0
+	;;
+  --help )
+	echo bbb $1
+	print_usage
+	exit 0
+	;;
+  -h )
+	echo ccc $1
+	print_usage
+	exit 0
+	;;
+*)
+	;;
+esac
+
+[[ "$1" = "-f" ]] && {
+        CONFIGFILE="$2"
+        shift 2
+
+#	echo "xx $#"
+#	(($#<2)) || {
+#		print_usage
+#		exit 1
+#	}
+
+	[[ -f "$CONFIGFILE" ]] || {
+		echo "No such file: $CONFIGFILE"
+		exit 1
+	}
+	source "$CONFIGFILE"
+	SUFFIX=".$(basename $CONFIGFILE)"
+}
+
+export TUNNEL_SERVICE_URL=${TUNNEL_SERVICE_URL:=localhost:5432}
+
+#: ${TUNNEL_SERVICE_HOSTNAME:?}
+#: ${TUNNEL_SERVICE_URL:?}
+#: ${TUNNEL_SERVICE_TOKEN_ID:?}
+#: ${TUNNEL_SERVICE_TOKEN_SECRET:?}
+
+PID_DIR=${PID_DIR:=~/var}
+LOG_DIR=${LOG_DIR:=~/log}
+
+PID_FILE=$PID_DIR/tunnel${SUFFIX}.pid
+LOG_FILE=$LOG_DIR/tunnel${SUFFIX}.log
+
+# Create LOG_DIR and PID_DIR if not already there
+[[ -d $LOG_DIR ]] || {
+    mkdir $LOG_DIR || exit 1
+}
+
+[[ -d $PID_DIR ]] || {
+    mkdir $PID_DIR || exit 1
+}
+
+
+case "$1" in
+up|start)
+    # These guys need to be set in the calling environment:
+    : ${TUNNEL_SERVICE_HOSTNAME:?}
+    : ${TUNNEL_SERVICE_TOKEN_ID:?}
+    : ${TUNNEL_SERVICE_TOKEN_SECRET:?}
+
+    [[ -f $PID_FILE ]] && {
+        PID=$(<$PID_FILE)
+        ps -p $PID && {
+            echo Tunnel already up and running
+            exit 0
+        }
+        ps -p $PID || {
+            echo "start attempted with PID present but now process. crashed? cleaning up and continuing..."
+            rm $PID_FILE
+        }
+    }
+
+    trap '' HUP # Trap and ignore the hangup signal - Don't exit with script
+    # Keep a log of everything going to stdout and stderr in $LOG_FILE
+    exec > >(tee -a $LOG_FILE) 2>&1
+
+    echo starting cloudflare ...
+    echo -n "now: "
+    date
+    echo
+    $CLOUDFLARED_EXE access tcp &
+    PID=$! # Get the PID of the last command put in the background
+    sleep 1
+    ps -p $PID || {
+        echo "Start attempted but it didn't take"
+        rm $PID_FILE
+        exit 1
+    }
+    echo $PID > $PID_FILE
+	exit $?
+       	;;
+down|stop)
+    [[ -f $PID_FILE ]] || {
+        echo No PID_FILE for tunnel. Is it running?
+        exit 1
+    }
+    PID=$(<$PID_FILE)
+    # Keep a log of everything going to stdout and stderr in $LOG_FILE
+    exec > >(tee -a $LOG_FILE) 2>&1
+
+    echo "Terminating process..."
+    echo -n "now: "
+    date
+    echo
+    ps -p $PID && kill $PID
+    echo done
+    rm $PID_FILE
+    exit $?
+       	;;
+status)
+    [[ -f $PID_FILE ]] || {
+        echo No PID_FILE $PID_FILE for tunnel. Apparently not running.
+        exit 0
+    }
+    PID=$(<$PID_FILE)
+    ps -p $PID
+	exit $?
+       	;;
+clean)
+    [[ -f $PID_FILE ]] && {
+        PID=$(<$PID_FILE)
+        ps -p $PID && {
+            echo Error: Tunnel active.
+            exit 1
+        }
+        rm $PID_FILE
+    }
+	exit 0
+       	;;
+*)
+        print_usage
+        exit 1
+        ;;
+esac
+
+exit 0

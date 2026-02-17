@@ -1,0 +1,75 @@
+#!/bin/python
+"""
+Writes a 3-panel plot of a Slurm job profile (per-task CPU, Memory, & I/O) into an image file.
+
+Usage:
+  profile_plot [options] JOBID
+
+JOBID can be a Slurm job ID or job step ID.
+
+Options:
+  -c, --colour=<task|node|step>   Which field to colour by. Defaults to "step" for jobs, "task" for steps.
+  -r, --iorate                    Show I/O rates rather than cumulative I/O.
+  -e, --elapsed                   Zero time at start of the job.
+  -y, --height=NUM                Height of each chart [default: 150].
+  -x, --width=NUM                 Width of each chart [default: 400].
+  -f, --format=<PNG|SVG|PDF>      Output image format [default: PNG].
+  -o, --output=FILE               Output file name. stdout if "-".
+
+If there are too many tasks then only a sample of them will be shown.
+"""
+
+import sys
+import requests
+from subprocess import check_output
+from docopt import docopt
+
+def process_options(args):
+    colour_field = args['--colour']
+    if colour_field not in {None, 'task', 'step', 'node'}:
+        raise ValueError(colour_field)
+
+    accumulate_io = not args['--iorate']
+
+    relative_time = args['--elapsed']
+
+    height = int(args['--height'])
+    width = int(args['--width'])
+
+    file_format = args['--format'].lower()
+    if file_format not in {'png', 'svg', 'pdf'}:
+        raise ValueError(file_format)
+
+    sacct_id = args['JOBID']
+    if "." in sacct_id:
+        (job_id, step_id) = sacct_id.split('.')
+        colour_field = colour_field or 'task'
+    else:
+        (job_id, step_id) = (sacct_id, None)
+        colour_field = colour_field or 'step'
+    if '_' in job_id:
+        job_id = check_output(['sacct', '-X', '-n', '-j', sacct_id, '--format', 'jobidraw'], text=True).strip()
+
+    V = vars()
+    R = {}
+    for k in ['height', 'width', 'file_format', 'job_id', 'step_id', 'relative_time', 'colour_field', 'accumulate_io']:
+        if V[k] is not False: R[k] = V[k]
+    return R
+
+args = docopt(__doc__)
+params = process_options(args)
+reply = requests.get('http://admin01:8000/profile', params=params)
+if reply.status_code != 200:
+    sys.stderr.write('Failed')
+    sys.exit(1)
+reply.raise_for_status()
+mime_type = reply.headers['content-type']
+(mime_kind, mime_format) = mime_type.split('/')
+assert mime_kind == 'image'
+
+sacct_id = args['JOBID']
+fn = args['--output']
+if fn is None:
+  fn = f'{sacct_id}_profile.{mime_format}'
+  sys.stderr.write(f'Writing {fn}\n')
+(sys.stdout.buffer if fn=='-' else open(fn, 'wb')).write(reply.content)

@@ -1,0 +1,29 @@
+#!/bin/bash
+# matt.pestle@nesi.org.nz
+# April 2025
+# Create the .sudosh_allow semaphore file in the calling user's
+# $HOME directory, and run 
+#       sudosh-grp -a
+# as root (who has access to the ipa admin password), which
+# should place the user in the "impersonated" group, allowing
+# them to be impersonated.
+
+(($#==0)) || {
+        echo "arguments not allowed"
+        exit 1
+}
+
+echo "Adding $USER to group of users who can be impersonated by NeSI support."
+echo "Use "
+echo "    sudosh-disallow"
+echo "to remove yourself from this group."
+echo
+
+BIN_DIR=$(dirname `readlink -f $0`)
+
+touch $HOME/.sudosh_allow || {
+        echo "Unable to create semaphore file $HOME/.sudosh_allow - giving up"
+        exit 1
+}
+
+sudo $BIN_DIR/sudosh-grp -a $USER

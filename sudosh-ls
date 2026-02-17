@@ -1,0 +1,59 @@
+#!/bin/bash
+# matt.pestle@nesi.org.nz
+# April 2025
+# Show a listing of any impersonation sessions that have
+# been done of someone impersonating the calling user.
+# This is a wrapper around sudosh-replay that allows
+# all users to see their own impersonation sessions.
+# In its original form, sudosh-replay needs to be run by root,
+# and this relaxes that restriction by filtering out the calling
+# user's session into a directory by itself, and then calling
+# sudosh-replay on that directory.
+# Otherwise sudosh-replay will crash on the first session that
+# it can't read (presumably because it's trying to read the
+# recording to see who did it, how long it is, etc.)
+
+TMPDIR=${TMPDIR:=/tmp}
+SUDOSH_LOGDIR=/var/log/sudosh
+
+BIN_DIR=$(dirname `readlink -f $0`)
+
+[[ -d "$SUDOSH_LOGDIR" ]] || {
+	echo "setup error - sudosh logdir does not exist"
+	exit 1
+}
+
+ME=$(id -gn)
+MYDIR=$TMPDIR/sudosh_$ME
+
+# Start with a clean slate:
+[[ -d "$MYDIR" ]] && /bin/rm -rf "$MYDIR"
+
+# Create a directory with symlinks of only the calling user's files
+umask 0077
+mkdir "$MYDIR" || exit 1
+cd $MYDIR || exit 1
+find -L $SUDOSH_LOGDIR -user "$ME" -exec ln -s {} . \; || exit 1
+
+NUM_RECORDINGS=$($BIN_DIR/sudosh-replay -d "$MYDIR" 2>/dev/null | wc -l)
+
+((NUM_RECORDINGS==0)) && {
+	echo "No available impersonation sessions for user $ME"
+	exit 0
+}
+
+# Get the header and the most recently ID (last column of the last line)
+# In this incarnation of sudosh-replay, the header and info messages get
+# pushed to stderr, and the session info lines to stdout, hence:
+$BIN_DIR/sudosh-replay -d "$MYDIR" 2>&1 | head -2
+LAST_ID=$($BIN_DIR/sudosh-replay -d "$MYDIR" 2>/dev/null | tail -1 | awk '{print $NF}')
+
+# And now suppress the header and info message
+# and just get the session lines coming to stdout
+$BIN_DIR/sudosh-replay -d "$MYDIR" 2>/dev/null
+
+echo
+echo "Usage: sudosh-replay ID [MULTIPLIER] [MAXWAIT]"
+echo "See 'sudosh-replay -h' for more help."
+echo "Example: sudosh-replay $LAST_ID 1 2"
+

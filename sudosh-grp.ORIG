@@ -1,0 +1,64 @@
+#!/bin/bash
+# matt.pestle@nesi.org.nz
+# April 2025
+#
+# Add (-a) or remove (-d) a user from the "impersonated"
+# group, which should allow them to be able to be "impersonated"
+# by any member of the "impersonator" group by using sudosh.
+#
+# This is via a sudo rule that should be in place:
+#    ipa sudorule-add-runasuser impersonate --group=impersonated
+#
+# Here when a request is made to add or remove a user from
+# the impersonated group, we first check for the existence of a semaphore
+# file in the user's $HOME directory. The user must have given their
+# consent to enter the impersonated group by creating this semaphore
+# file (.sudosh_allow).
+# See sudosh-allow and sudosh-disallow, which are available for execution
+# by users, and merely creates/deletes this semaphore file and then
+# calls this script as root (everyone will be able to execute this script)
+# which authenticates to ipa as a privileged user and adjusts the group
+# membership accordingly.
+# After the group is changed, the sss_cache is refreshed for the user,
+# because we want this to take effect now, and who knows how long it'll be
+# before sss gets around to getting itself current.
+
+(($#==2)) || {
+	echo "Usage: $0 <-a|-d> <user>"
+	exit 1
+}
+
+IPA_PASSWORD_FILE=/opt/nesi/etc/user_admin.ipa
+u=$2
+d=$(eval echo ~$u)
+SEMAPHORE_FILE=$d/.sudosh_allow
+IPA_USER=user_admin
+P=$(< $IPA_PASSWORD_FILE) || exit 1
+IMPERSONATED_GROUP=impersonated
+
+case $1 in
+-a)
+	[[ -f $SEMAPHORE_FILE ]] && {
+		kinit $IPA_USER >/dev/null<<EOF
+$P
+EOF
+		ipa group-add-member $IMPERSONATED_GROUP --users=$u
+		sss_cache -u $u
+	}
+	;;
+-d)
+	[[ -f $SEMAPHORE_FILE ]] || {
+		kinit $IPA_USER >/dev/null<<EOF
+$P
+EOF
+		ipa group-remove-member $IMPERSONATED_GROUP --users=$u
+		sss_cache -u $u
+	}
+	;;
+*)
+	echo "Usage: $0 <-a|-d> <user>"
+	exit 1
+	;;
+esac
+
+exit

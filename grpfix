@@ -1,0 +1,62 @@
+#!/bin/bash
+# matt.pestle@nesi.org.nz
+# Jul 2025
+# "fix" groups by doing
+#    chgrp -R $G /nesi/$D/$G/
+#    find /nesi/$D/$G/ -type d -exec setfacl -m g:$G:rwx {} +
+#    find /nesi/$D/$G/ -type d -exec chmod g+s {} +
+# See https://nznesi.atlassian.net/browse/FS-12130 and a bunch of similar tickets.
+# Where D is provided as the first argument (either project or nobackup),
+# and G iterates over all subsequent arguments.
+# "both" is also allowed as a 1st argument, and this does both project and nobackup.
+# "Usage: $0 <project|nobackup|both> <group_name> ..."
+# For convenience, link it over to /usr/bin (or elsewhere on the sudo secure path)
+# to allow calling users to just say
+#    sudo grpfix both nesi99999
+# Setup sudo rules/commands allowing apps-team to run as root on weka clients
+# (or at least one of them).
+
+
+function print_usage {
+    echo "Usage: $0 <project|nobackup|both> <group_name> ..."
+}
+
+(($#<2)) && {
+    print_usage
+    exit 1
+}
+
+D=$1
+shift
+
+case $D in
+project) ;;
+nobackup) ;;
+both)
+    $0 project "$@"
+    $0 nobackup "$@"
+    exit
+;;
+
+*)
+    print_usage
+    exit 1
+esac
+
+((UID==0)) || {
+    echo "Must be run as root"
+    exit 1
+}
+
+while (($#>0))
+do
+    G=$1
+    shift
+    [[ -d /nesi/$D/$G ]] || {
+        echo No such directory: /nesi/$D/$G
+        continue
+    }
+    chgrp -R $G /nesi/$D/$G/
+    find /nesi/$D/$G/ -type d -exec setfacl -m g:$G:rwx {} +
+    find /nesi/$D/$G/ -type d -exec chmod g+s {} +
+done
