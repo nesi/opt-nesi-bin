@@ -1,0 +1,60 @@
+#!/bin/python
+"""
+Extract raw Slurm job profile data (per-task CPU, Memory, & I/O) into a dataframe file.
+
+Usage:
+  profile_data [options] JOBID
+
+JOBID can be a Slurm job ID or job step ID.
+
+Options:
+  -f, --format=<csv|parquet|feather|pickle>   Output image format [default: csv].
+  -d, --date_format=<epoch|iso>               For text formats such as csv [default: iso].
+  -m, --max_timepoints=NUM                    0 or downsample timestamps to no more than this [default: 0].
+  -o, --output=FILE                           Output file name. stdout if "-".
+
+If there are too many tasks then only a sample of them will be shown.
+"""
+
+import sys
+import requests
+from subprocess import check_output
+from docopt import docopt
+
+sys.tracebacklimit = 0
+
+def process_options(args):
+    file_format = args['--format'].lower()
+    if file_format not in {'csv', 'pickle', 'feather', 'parquet'}:
+        raise ValueError(file_format)
+
+    date_format = args['--date_format'].lower()
+
+    max_timepoints = args['--max_timepoints']
+
+    sacct_id = args['JOBID']
+    if "." in sacct_id:
+        (job_id, step_id) = sacct_id.split('.')
+    else:
+        (job_id, step_id) = (sacct_id, None)
+    if '_' in job_id:
+        job_id = check_output(['sacct', '-X', '-n', '-j', sacct_id, '--format', 'jobidraw'], text=True).strip()
+
+    V = vars()
+    R = {}
+    for k in ['file_format', 'job_id', 'step_id', 'date_format', 'max_timepoints']:
+        if V[k] is not False: R[k] = V[k]
+    return R
+
+args = docopt(__doc__)
+params = process_options(args)
+reply = requests.get('http://admin01:8000/profile_data', params=params)
+reply.raise_for_status()
+file_format = params['file_format']
+
+sacct_id = args['JOBID']
+fn = args['--output']
+if fn is None:
+    fn = f'{sacct_id}_profile.{file_format}'
+    sys.stderr.write(f'Writing {fn}\n')
+(sys.stdout.buffer if fn=='-' else open(fn, 'wb')).write(reply.content)
