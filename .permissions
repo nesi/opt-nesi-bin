@@ -12,7 +12,6 @@ grpfix;755;cwal219;cwal219
 logger.py;644;cwal219;cwal219
 micro;755;cwal219;cwal219
 nn_acl_functions.rc;644;cwal219;cwal219
-nn_add_to_acls_recursively;755;cwal219;cwal219
 nn_archive_files;755;cwal219;cwal219
 nn_audit_home_directories;755;cwal219;cwal219
 nn_check_project_directories;755;cwal219;cwal219
@@ -27,7 +26,6 @@ nn_job_priorities;755;cwal219;cwal219
 nn_my_queued_jobs;755;cwal219;cwal219
 nn_profile_plot;755;cwal219;cwal219
 nn_seff;755;cwal219;cwal219
-nn_set_acls_recursively;755;cwal219;cwal219
 nn_sshare_sorted;755;cwal219;cwal219
 nn_storage_quota;755;cwal219;cwal219
 nn_storage_quotaw;754;cwal219;cwal219
