@@ -1,4 +1,5 @@
 .gitignore;644;cwal219;cwal219
+.permissions;644;cwal219;cwal219
 LICENSE;644;cwal219;cwal219
 README.md;644;cwal219;cwal219
 aws;777;cwal219;cwal219
@@ -12,7 +13,6 @@ nn_archive_files;755;cwal219;cwal219
 nn_audit_home_directories;755;cwal219;cwal219
 nn_check_quota;777;cwal219;cwal219
 nn_countfiles;755;cwal219;cwal219
-nn_cronic;755;cwal219;cwal219
 nn_dir_contents;755;cwal219;cwal219
 nn_doomed_list;755;cwal219;cwal219
 nn_group_members;755;cwal219;cwal219
