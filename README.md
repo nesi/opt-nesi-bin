@@ -139,14 +139,89 @@ If replacing a command:
 
 TODO: Move main description into command itself.
 
-### `nn_storage_quota`
 
-Modified for weka to use the df command. Drops inode reporting.
+### `aws`
+
+Symlink to `/opt/nesi/share/aws-cli/v2/current/bin/aws`
+
+### `aws_completer`
+
+symlink to `/opt/nesi/share/aws-cli/v2/current/bin/aws_completer`
+
+### `cloudflared`
+
+*Binary not in repo*
+
+Dunno
+
+### db_tunnel_ctl
+
+Symlink to `db_tunnel_ctl`
+
+### diskquotas    
+
+### `get_system_tag.sh`
+
+Dunno. Seems broken.
+
+### `gprof2dot`
+
+*Binary not in repo*
+
+### grpfix
+
+### home_directory_whitelist.txt
+
+Used by audit maybe?
+
+### `jupyterbash`
+
+Used by jupyter for something.
+Owned by root.
+
+### `logger.py`
+
+Seems to forward stdin to syslogs?
+
+### `nn_archive_files`
+
+A wrapper to bundle a list of files up into a SquashFS archive, creating
+a list of checksums in the process (to help the user to identify bitrot later).
+probably deprecated.
+
+### `nn_audit_home_directories`
+
+Shows all home directories with 'incorrect' permissions.
+Questionable use to users.
+
+### `nn_check_quota`
+
+Symlink to `nn_storage_quota`
+
+### `nn_countfiles`
+
+Helper script to count files under a directory (find/wc/tr, etc). 
+Should just run.
+
+### `nn_dir_contents`
+
+Just a report on a directory. `bash/find/awk/du`
+
+### `nn_doomed_list`
+
+Helper script that seems to report on files that are about to be deletd.
+It must work in conjunction with some other process that produces the doomed file:
+`/nesi/nobackup/<project>/.policy/to_delete/latest.filelist.gz`
+because it reads those and prints them out.
 
 ### `nn_group_members`
 
 Print out active members of a group. Should just run as is.
-    
+
+### `nn_job_priorities`
+
+`sprio | head -n 1 && (sprio | tail -n +2 | sort -n -r -k3,3)`
+
 ### `nn_my_queued_jobs`
 
 basically, the output of
@@ -158,41 +233,17 @@ basically, the output of
 `sacct -P -n -a --format JobID,User,State,Cluster,AllocCPUS,REQMEM,TotalCPU,Elapsed,MaxRSS,NNodes,NTasks -j <job_id>`
 this is a python3 script. 
 
-### `nn_job_priorities`
+### nn_sshare_sorted
 
-`sprio | head -n 1 && (sprio | tail -n +2 | sort -n -r -k3,3)`
+### `nn_storage_quota`
 
-### `nn_corehour_usage` 
+Modified for weka to use the df command. Drops inode reporting.
 
-Slurm related more logic here, but doesn't look like anything too bad.
+### nn_weekly_job_efficiency_report.sh
 
-### `nn_daily_resource_usage`
+### profile_data
 
-### `nn_check_project_directories` 
-
-Just a report on a project's directory structure (ownership, ACLs, etc)
-Should just need to pull out he .snapshots part and looks like it will run.
-
-### `nn_dir_contents`
-
-Just a report on a directory. bash/find/awk/du - should just run.
-
-### `nn_countfiles`
-
-Helper script to count files under a directory (find/wc/tr, etc). 
-Should just run.
-
-### `nn_archive_files`
-
-A wrapper to bundle a list of files up into a SquashFS archive, creating
-a list of checksums in the process (to help the user to identify bitrot later).
-probably deprecated.
-
-### `nn_profile_plot`
-
-loads python module and calls `.nn_profile_plot.py`
-
-### `.nn_profile_plot.py`
+### `profile_plot`
 
 Plot data from a Slurm HDF5 profile file generated with sh5util.
 
@@ -202,13 +253,36 @@ Writes a 4-panel plot into a PNG file.
  - I/O Rate
  - Cumulative I/O
 
-### `nn_doomed_list`
-
-Helper script that seems to report on files that are about to be deletd.
-It must work in conjunction with some other process that produces the doomed file:
-`/nesi/nobackup/<project>/.policy/to_delete/latest.filelist.gz`
-because it reads those and prints them out.
-
 ### `tunnel_ctl`
 
 Helper script for managing cloudflare tunnels
+
+### `sudosh-allow`
+
+opt in, and allow yourself to be impersonated (places the calling user into the impersonated group)
+
+### `sudosh-disallow`
+
+opt out (removes the calling user from the impersonated group)
+
+### `sudosh-grp`
+
+helper function called by the above two utilities to add/remove user from the impersonated group (this requires a sudo rule, since it needs freeipa privileges for maintaining groups)
+
+### `sudosh-ls`
+
+list sessions in which the calling user has been impersonated, along with metadata about each session (who did it, when, how long did it last)
+
+and the out of the box sudosh utilities
+
+### `sudosh`
+
+*Binary not in repo.*
+
+Impersonators call this, using `sudo -u <user> sudosh`
+
+### `sudosh-replay`
+
+*Binary not in repo.*
+
+Users can call this to replay sessions in which they were impersonated. root can view all sessions
