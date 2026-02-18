@@ -13,7 +13,7 @@ Options:
   -e, --elapsed                         Zero time at start of the job.
   -x, --width=NUM                       Width of each chart [default: 400].
   -y, --height=NUM                      Height of each chart [default: 150].
-  -m, --max_timepoints=NUM              0 or downsample timestamps no no more than this [default: 600].
+  -m, --max_timepoints=NUM              0 or downsample timestamps to no more than this [default: 600].
   -n, --max_tasks=NUM                   0 or downsample tasks to no more than this [default: 16].
   -f, --format=<PNG|SVG|PDF|HTML|JSON>  Output file format [default: PNG].
   -o, --output=FILE                     Output file name. stdout if "-".
