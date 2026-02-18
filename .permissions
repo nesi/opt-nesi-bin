@@ -11,7 +11,6 @@ get_system_tag.sh;644;cwal219;cwal219
 grpfix;755;cwal219;cwal219
 logger.py;644;cwal219;cwal219
 micro;755;cwal219;cwal219
-nn_acl_functions.rc;644;cwal219;cwal219
 nn_archive_files;755;cwal219;cwal219
 nn_audit_home_directories;755;cwal219;cwal219
 nn_check_project_directories;755;cwal219;cwal219
