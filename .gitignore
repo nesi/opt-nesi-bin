@@ -8,3 +8,4 @@ gprof2dot
 jupyterbash
 logger.py
 .permissions
+cloudflared
