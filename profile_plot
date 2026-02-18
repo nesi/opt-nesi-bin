@@ -8,13 +8,15 @@ Usage:
 JOBID can be a Slurm job ID or job step ID.
 
 Options:
-  -c, --colour=<task|node|step>   Which field to colour by. Defaults to "step" for jobs, "task" for steps.
-  -r, --iorate                    Show I/O rates rather than cumulative I/O.
-  -e, --elapsed                   Zero time at start of the job.
-  -y, --height=NUM                Height of each chart [default: 150].
-  -x, --width=NUM                 Width of each chart [default: 400].
-  -f, --format=<PNG|SVG|PDF>      Output image format [default: PNG].
-  -o, --output=FILE               Output file name. stdout if "-".
+  -c, --colour=<task|node|step>         Which field to colour by. Defaults to "step" for jobs, "task" for steps.
+  -r, --iorate                          Show I/O rates rather than cumulative I/O.
+  -e, --elapsed                         Zero time at start of the job.
+  -x, --width=NUM                       Width of each chart [default: 400].
+  -y, --height=NUM                      Height of each chart [default: 150].
+  -m, --max_timepoints=NUM              0 or downsample timestamps no no more than this [default: 600].
+  -n, --max_tasks=NUM                   0 or downsample tasks to no more than this [default: 16].
+  -f, --format=<PNG|SVG|PDF|HTML|JSON>  Output file format [default: PNG].
+  -o, --output=FILE                     Output file name. stdout if "-".
 
 If there are too many tasks then only a sample of them will be shown.
 """
@@ -23,6 +25,8 @@ import sys
 import requests
 from subprocess import check_output
 from docopt import docopt
+
+sys.tracebacklimit = 0
 
 def process_options(args):
     colour_field = args['--colour']
@@ -36,8 +40,11 @@ def process_options(args):
     height = int(args['--height'])
     width = int(args['--width'])
 
+    max_timepoints = int(args['--max_timepoints'])
+    max_tasks = int(args['--max_tasks'])
+
     file_format = args['--format'].lower()
-    if file_format not in {'png', 'svg', 'pdf'}:
+    if file_format not in {'png', 'svg', 'pdf', 'json', 'html'}:
         raise ValueError(file_format)
 
     sacct_id = args['JOBID']
@@ -52,24 +59,20 @@ def process_options(args):
 
     V = vars()
     R = {}
-    for k in ['height', 'width', 'file_format', 'job_id', 'step_id', 'relative_time', 'colour_field', 'accumulate_io']:
+    for k in ['height', 'width', 'file_format', 'job_id', 'step_id', 'relative_time', 'colour_field', 'accumulate_io', 'max_timepoints', 'max_tasks']:
         if V[k] is not False: R[k] = V[k]
     return R
 
 args = docopt(__doc__)
 params = process_options(args)
-reply = requests.get('http://admin01:8000/profile', params=params)
-if reply.status_code != 200:
-    sys.stderr.write('Failed')
-    sys.exit(1)
+reply = requests.get('http://admin01:8000/profile_chart', params=params)
 reply.raise_for_status()
-mime_type = reply.headers['content-type']
+mime_type = reply.headers['content-type'].split(';')[0]
 (mime_kind, mime_format) = mime_type.split('/')
-assert mime_kind == 'image'
 
 sacct_id = args['JOBID']
 fn = args['--output']
 if fn is None:
-  fn = f'{sacct_id}_profile.{mime_format}'
-  sys.stderr.write(f'Writing {fn}\n')
+    fn = f'{sacct_id}_profile.{mime_format}'
+    sys.stderr.write(f'Writing {fn}\n')
 (sys.stdout.buffer if fn=='-' else open(fn, 'wb')).write(reply.content)
