@@ -1,10 +1,10 @@
 .gitignore;644;cwal219;cwal219
 .nn_profile_plot.py;755;cwal219;cwal219
+.permissions;644;cwal219;cwal219
 LICENSE;644;cwal219;cwal219
 README.md;644;cwal219;cwal219
 aws;777;cwal219;cwal219
 aws_completer;777;cwal219;cwal219
-cloudflared;755;cwal219;cwal219
 db_tunnel_ctl;777;cwal219;cwal219
 diskquotas;755;cwal219;cwal219
 get_system_tag.sh;644;cwal219;cwal219
