@@ -139,7 +139,6 @@ If replacing a command:
 
 TODO: Move main description into command itself.
 
-
 ### `aws`
 
 Symlink to `/opt/nesi/share/aws-cli/v2/current/bin/aws`
@@ -152,7 +151,7 @@ symlink to `/opt/nesi/share/aws-cli/v2/current/bin/aws_completer`
 
 *Binary not in repo*
 
-Dunno
+Cloudflare tunnel connector. Used by Lai Kei.
 
 ### db_tunnel_ctl
 
