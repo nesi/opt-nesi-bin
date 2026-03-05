@@ -66,13 +66,17 @@ def process_options(args):
 args = docopt(__doc__)
 params = process_options(args)
 reply = requests.get('http://admin01:8000/profile_chart', params=params)
-reply.raise_for_status()
 mime_type = reply.headers['content-type'].split(';')[0]
 (mime_kind, mime_format) = mime_type.split('/')
-
-sacct_id = args['JOBID']
-fn = args['--output']
-if fn is None:
-    fn = f'{sacct_id}_profile.{mime_format}'
-    sys.stderr.write(f'Writing {fn}\n')
-(sys.stdout.buffer if fn=='-' else open(fn, 'wb')).write(reply.content)
+if reply.status_code != 200:
+    msg = reply.content.decode() if mime_kind == 'text' else 'Failed'
+    sys.stderr.write(msg + '\n')
+    sys.exit(1)
+else:
+    assert mime_kind == 'image'
+    sacct_id = args['JOBID']
+    fn = args['--output']
+    if fn is None:
+        fn = f'{sacct_id}_profile.{mime_format}'
+        sys.stderr.write(f'Writing {fn}\n')
+    (sys.stdout.buffer if fn=='-' else open(fn, 'wb')).write(reply.content)
