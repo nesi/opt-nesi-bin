@@ -10,7 +10,7 @@ JOBID can be a Slurm job ID or job step ID.
 Options:
   -f, --format=<csv|parquet|feather|pickle>   Output image format [default: csv].
   -d, --date_format=<epoch|iso>               For text formats such as csv [default: iso].
-  -m, --max_timepoints=NUM                    0 or downsample timestamps to no more than this [default: 0].
+  -m, --max_timepoints=NUM                    Downsample to no more than this many timestamps [default: 1000].
   -o, --output=FILE                           Output file name. stdout if "-".
 
 If there are too many tasks then only a sample of them will be shown.
