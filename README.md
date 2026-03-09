@@ -10,7 +10,7 @@ Please try to record your changes 🙂
 - Test before merging.
 - All changes tracked through Git!.
 
-## For NeSI Staff
+## For REANNZ Staff
 
 ### Creating your user copy
 
