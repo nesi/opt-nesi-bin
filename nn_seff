@@ -97,19 +97,15 @@ for job in jobs:
     else:
         array_jobid = ""
 
-    tot_cpu_sec = 0
-    tot_cpu_usec = 0
+    tot_cpu_msec = 0
     mem = -1
     for step in job['steps']:
         used = step['tres']['requested']
-        cputime = step['time']['total']
-        tot_cpu_sec += cputime['seconds']
-        tot_cpu_usec += cputime['microseconds']
+        tot_cpu_msec += ex_tres(used['total'], 'cpu', 0)
         lmem = ex_tres(used['total'], 'mem', 0) / 1024
         if mem < lmem:
             (mem, the_step, the_usage) = (lmem, step, used)
 
-    cput = tot_cpu_sec + int((tot_cpu_usec / 1000000) + 0.5)
     ntasks = the_step['tasks']['count']
 
     print("Cluster:", clustername)
@@ -127,14 +123,14 @@ for job in jobs:
 
     corewalltime = walltime * ncores
     if corewalltime:
-        cpu_eff = cput / corewalltime * 100
+        cpu_eff = tot_cpu_msec / 1000 / corewalltime * 100
     else:
         cpu_eff = 0.0
 
     print("Job Wall-time:   {: >5.1f}%  {} of {} time limit".format(
         100*walltime/timelimit, time2str(walltime), time2str(timelimit)))
     print("CPU Utilisation: {: >5.1f}%  {} of {} core-walltime".format(
-        cpu_eff, time2str(cput), time2str(corewalltime)))
+        cpu_eff, time2str(tot_cpu_msec/1000), time2str(corewalltime)))
 
     if reqmem:
         mem_eff = mem / reqmem * 100
