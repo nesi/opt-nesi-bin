@@ -42,8 +42,8 @@ git commit -m "Fix incorrect path handling in nn_count_files"
 Before creating a PR:
 
 - Test the command locally.
-- Ensure you are running the local version (e.g. `./nn_my_tool`).
-- Check command works outside its directory (e.g. `opt-nesi-bin/nn_my_tool`).
+- Ensure you are running the local version (e.g. `./my_tool`).
+- Check command works outside its directory (e.g. `opt-nesi-bin/my_tool`).
 - Confirm help output works.
 
 Then push:
@@ -78,7 +78,7 @@ DONT modify files directly in `/opt/nesi/bin` changes must come through Git!
 
 ### Naming
 
-- Commands must start with `nn`
+- ~~Commands must start with `nn`~~
 - Use `snake_case`
 - Keep names short and descriptive
 
