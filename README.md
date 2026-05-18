@@ -173,6 +173,10 @@ Dunno. Seems broken.
 
 Used by audit maybe?
 
+### `jump_into`
+
+This wapper is designed to allow the user to ssh into a node that the user has a job running on. Created because sshing into mahuika nodes sometimes does not work. Designed based on `srun --pty --overlap --jobid "$jobid" -w "$target_node" bash`. 
+
 ### `jupyterbash`
 
 Used by jupyter for something.
