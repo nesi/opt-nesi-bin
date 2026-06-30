@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -euo pipefail
+
+S3CFG="${HOME}/.s3cfg"
+AWSDIR="${HOME}/.aws"
+
+if [[ ! -f "$S3CFG" ]]; then
+    echo "Error: ~/.s3cfg not found"
+    exit 1
+fi
+
+access_key=$(awk -F'=' '/^access_key/{gsub(/ /,"",$2); print $2}' "$S3CFG")
+secret_key=$(awk -F'=' '/^secret_key/{gsub(/ /,"",$2); print $2}' "$S3CFG")
+
+if [[ -z "$access_key" || -z "$secret_key" ]]; then
+    echo "Error: could not parse access_key or secret_key from $S3CFG"
+    exit 1
+fi
+
+mkdir -p "$AWSDIR"
+chmod 700 "$AWSDIR"
+
+cat > "${AWSDIR}/config" <<EOF
+[default]
+region = akl-1
+endpoint_url = https://freezer.nesi.org.nz:7070
+EOF
+
+cat > "${AWSDIR}/credentials" <<EOF
+[default]
+aws_access_key_id = ${access_key}
+aws_secret_access_key = ${secret_key}
+EOF
+
+chmod 600 "${AWSDIR}/credentials"
+
+echo "Done. AWS CLI configured for use with Freezer"
