@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""Set up an SSH key pair (mahuika_ssh_key) in the user's ~/.ssh directory.
+
+Intended for use on the HPC. Safe to run multiple times: if the key already
+exists it is left untouched. Ensures ~/.ssh and key files have the correct
+permissions, and adds the public key to ~/.ssh/authorized_keys so the key
+can be used for internal (node-to-node) SSH.
+
+Usage:
+    python3 setup_ssh_key.py
+"""
+
+import getpass
+import os
+import socket
+import subprocess
+import sys
+from pathlib import Path
+
+KEY_NAME = "mahuika_ssh_key"
+KEY_TYPE = "ed25519"
+
+def ensure_ssh_dir(ssh_dir: Path) -> None:
+    ssh_dir.mkdir(mode=0o700, exist_ok=True)
+    # Fix permissions in case the directory already existed with looser ones.
+    os.chmod(ssh_dir, 0o700)
+
+def generate_key(private_key: Path, passphrase: str) -> None:
+    comment = f"{getpass.getuser()}@{socket.gethostname()} ({KEY_NAME})"
+    cmd = [
+        "ssh-keygen",
+        "-t", KEY_TYPE,
+        "-f", str(private_key),
+        "-N", passphrase,
+        "-C", comment,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        sys.exit(f"ERROR: ssh-keygen failed:\n{result.stderr.strip()}")
+
+def fix_key_permissions(private_key: Path, public_key: Path) -> None:
+    os.chmod(private_key, 0o600)
+    if public_key.exists():
+        os.chmod(public_key, 0o644)
+
+def add_to_authorized_keys(ssh_dir: Path, public_key: Path) -> bool:
+    """Append the public key to authorized_keys if not already present.
+
+    Returns True if the key was added, False if it was already there.
+    """
+    authorized_keys = ssh_dir / "authorized_keys"
+    pub_entry = public_key.read_text().strip()
+    # Compare on key type + key material only (ignore the trailing comment).
+    pub_material = " ".join(pub_entry.split()[:2])
+
+    if authorized_keys.exists():
+        for line in authorized_keys.read_text().splitlines():
+            if pub_material in line:
+                return False
+
+    with authorized_keys.open("a") as fh:
+        fh.write(pub_entry + "\n")
+    os.chmod(authorized_keys, 0o600)
+    return True
+
+def main() -> None:
+    ssh_dir = Path.home() / ".ssh"
+    private_key = ssh_dir / KEY_NAME
+    public_key = ssh_dir / f"{KEY_NAME}.pub"
+
+    ensure_ssh_dir(ssh_dir)
+
+    if private_key.exists():
+        print(f"Key already exists, leaving it untouched: {private_key}")
+        if not public_key.exists():
+            print(f"WARNING: {public_key} is missing. Regenerate it with:")
+            print(f"    ssh-keygen -y -f {private_key} > {public_key}")
+    else:
+        generate_key(private_key, passphrase="")
+        print(f"Generated new {KEY_TYPE} key: {private_key}")
+
+    fix_key_permissions(private_key, public_key)
+
+    if public_key.exists():
+        if add_to_authorized_keys(ssh_dir, public_key):
+            print(f"Added public key to {ssh_dir / 'authorized_keys'}")
+        else:
+            print("Public key already present in authorized_keys")
+
+if __name__ == "__main__":
+    main()
