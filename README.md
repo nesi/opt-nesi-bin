@@ -260,6 +260,10 @@ Writes a 4-panel plot into a PNG file.
 
 Helper script for managing cloudflare tunnels
 
+### `setup_ssh_key`
+
+Will setup internal ssh keys in a users home directory. Having an internal ssh key allows a user to access the terminal on mahuika without needing to authenticate themselves.
+
 ### `sudosh-allow`
 
 opt in, and allow yourself to be impersonated (places the calling user into the impersonated group)
