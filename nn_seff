@@ -24,7 +24,7 @@ def kbytes2str(kbytes):
     return "%.2f %sB" % (kbytes / mul**exp, pre.strip())
 
 def sacct(*args):
-    p = subprocess.run(['sacct', '--json'] + list(args),
+    p = subprocess.run(['sacct', '--json=data_parser/v0.0.43'] + list(args),
             stdout=subprocess.PIPE, timeout=30, check=True)
     return json.loads(p.stdout)
 
