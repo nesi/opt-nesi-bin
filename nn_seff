@@ -97,16 +97,39 @@ for job in jobs:
     else:
         array_jobid = ""
 
-    tot_cpu_msec = 0
-    mem = -1
+    # Count the job steps and collect their start/end times.
+    events = []
     for step in job['steps']:
+        step_id = step['step']['id']
         used = step['tres']['requested']
-        tot_cpu_msec += ex_tres(used['total'], 'cpu', 0)
-        lmem = ex_tres(used['total'], 'mem', 0) / 1024
-        if mem < lmem:
-            (mem, the_step, the_usage) = (lmem, step, used)
+        start = step['time']['start']['number']
+        end = step['time']['end']['number']
+        if end > start:
+            events.append((start, True, step_id, step))
+            events.append((end, False, step_id, step))
 
-    ntasks = the_step['tasks']['count']
+    # Find peaks over time for mem, and GPU utilisation, summing across any overlapping job steps.
+    current_steps = {}
+    current = {'mem': 0, 'gpuutil': 0, 'gpumem': 0}
+    peak = {'mem': 0}
+    peak_steps = {}
+    for (when, starting, step_id, step) in sorted(events):
+        used = step['tres']['requested']['total']
+        if starting:
+            current_steps[step_id] = step
+            direction = 1
+        else:
+            current_steps.pop(step_id)
+            direction = -1
+        for (key, delta) in {
+                'mem': ex_tres(used, 'mem', 0) / 1024,
+                'gpuutil': ex_tres(used, 'gpuutil', None),
+                'gpumem': ex_tres(used, 'gpumem', None)}.items():
+            if delta is not None:
+                current[key] += direction * delta
+                if current[key] > peak.get(key, 0):
+                    peak[key] = current[key]
+                    peak_steps[key] = current_steps.copy()
 
     print("Cluster:", clustername)
     print("Job ID:", jobid)
@@ -114,14 +137,12 @@ for job in jobs:
         print("Array Job ID:", array_jobid)
     print("State:", state)
     print("Cores:", ncores)
-    print("Tasks:", ntasks)
+    print("Tasks:", max(step['tasks']['count'] for step in job['steps']))
     print("Nodes:", nnodes)
 
-    min_mem = ex_tres(the_usage['min'], 'mem', 0) / 1024
-    max_mem = ex_tres(the_usage['max'], 'mem', min_mem) / 1024
-    pernode = ex_tres(the_usage['max'], 'mem', 0, field='task') == -1
-
+    # Walltime and CPU time
     corewalltime = walltime * ncores
+    tot_cpu_msec = sum(ex_tres(step['tres']['requested']['total'], 'cpu', 0) for step in job['steps'])
     if corewalltime:
         cpu_eff = tot_cpu_msec / 1000 / corewalltime * 100
     else:
@@ -132,22 +153,35 @@ for job in jobs:
     print("CPU Utilisation: {: >5.1f}%  {} of {} core-walltime".format(
         cpu_eff, time2str(tot_cpu_msec/1000), time2str(corewalltime)))
 
-    if reqmem:
-        mem_eff = mem / reqmem * 100
-    else:
-        mem_eff = 0.0
+    # Total Memory
+    mem_eff = (peak['mem'] / reqmem * 100) if reqmem else 0.0
+    print("Mem Utilisation: {: >5.1f}%  {} of {}".format(mem_eff, *map(kbytes2str, [peak['mem'], reqmem])), end='')
 
-    if ntasks == 1:
-        print("Mem Utilisation: {: >5.1f}%  {} of {}".format(
-            mem_eff, *map(kbytes2str, [mem, reqmem])))
+    # Per-task memory details
+    (mem_ntasks, max_mem, min_mem, peak_mem_steps) = (0, 0, 1e12, 0)
+    for (step_id, step) in peak_steps['mem'].items():
+        if ex_tres(step['tres']['requested']['total'], 'mem', 0) < peak['mem']/10:
+            continue  # ignore small steps, eg: probably the batch step.
+        step_usage = step['tres']['requested']
+        mem_ntasks += step['tasks']['count']
+        min_mem = min(min_mem, ex_tres(step_usage['min'], 'mem', 0))
+        max_mem = max(max_mem, ex_tres(step_usage['max'], 'mem', min_mem))
+        pernode = ex_tres(step_usage['max'], 'mem', 0, field='task') == -1  # can trust this is constant within a job?
+        peak_mem_steps += 1
+    if mem_ntasks == 1:
+        print()
     else:
-        (denom, desc) = (nnodes, 'node') if pernode else (ntasks, 'task')
-        print("Mem Utilisation: {: >5.1f}%  {} ({} to {} / {desc}) of {} ({}/{desc})".format(
-            mem_eff, *map(kbytes2str, [mem, min_mem, max_mem, reqmem, reqmem / denom]), desc=desc))
+        (denom, desc) = (nnodes, 'node') if pernode else (mem_ntasks, 'task')
+        print(" ({} to {}".format(kbytes2str(min_mem/1024), kbytes2str(max_mem/1024), desc=desc), end=' ')
+        if peak_mem_steps == 1:
+            print("of {}/{desc})".format(kbytes2str(reqmem / denom), desc=desc))
+        else:
+            print("in each of {} tasks from {} job steps)".format(mem_ntasks, peak_mem_steps))
 
-    if (gpuutil := ex_tres(the_usage['total'], 'gpuutil', None)) is not None:
+    # GPUs
+    if (gpuutil := peak.get('gpuutil')) is not None:
         print("GPU Utilisation: {: >3.0f}  %".format(gpuutil))
-    if (gpumem := ex_tres(the_usage['total'], 'gpumem', None)) is not None:
+    if (gpumem := peak.get('gpumem')) is not None:
         a100_gb = 40 if job['partition'] == 'genoa' else 80
         alloc = sum(mem * ex_tres(job['tres']['allocated'], 'gpu:'+kind, 0) for (kind, mem) in [('l4', 23), ('a100', a100_gb), ('h100', 94)])
         if alloc:
