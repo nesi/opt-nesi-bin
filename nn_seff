@@ -135,8 +135,8 @@ for job in jobs:
                 if current[key] > peak.get(key, 0):
                     peak[key] = current[key]
                     peak_steps[key] = current_steps.copy()
-
-    print("Cluster:", clustername)
+    if clusteropts:
+        print("Cluster:", clustername)
     print("Job ID:", jobid)
     if array_jobid:
         print("Array Job ID:", array_jobid)
