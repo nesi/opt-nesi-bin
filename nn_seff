@@ -141,10 +141,13 @@ for job in jobs:
     if array_jobid:
         print("Array Job ID:", array_jobid)
     print("State:", state)
+    if ordinary_batch_steps > 1:
+        print("Steps:", ("batch + " if has_batch_step else "") + str(ordinary_batch_steps))
+    if peak['ntasks'] > 0:
+        print("Tasks:", peak['ntasks'])
     print("Cores:", ncores)
-    print("Steps:", ("batch + " if has_batch_step else "") + str(ordinary_batch_steps))
-    print("Tasks:", peak['ntasks'])
-    print("Nodes:", nnodes)
+    if nnodes > 1 or peak['ntasks'] > 1:
+        print("Nodes:", nnodes)
 
     # Walltime and CPU time
     corewalltime = walltime * ncores
