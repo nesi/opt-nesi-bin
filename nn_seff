@@ -100,7 +100,7 @@ for job in jobs:
 
     # Count the job steps
     _step_id_suffixes = [step['step']['id'].split(".")[-1] for step in job['steps']]
-    has_batch_step = any(suffix.endswith('.batch') for suffix in _step_id_suffixes)
+    has_batch_step = any(suffix == 'batch' for suffix in _step_id_suffixes)
     ordinary_batch_steps = sum(1 for suffix in _step_id_suffixes if suffix.isdigit())
 
     # Collect the job step start and end events.
