@@ -72,6 +72,7 @@ for job in jobs:
         print()
     preceded = True
 
+    # Gather the simple job whole-job attributes
     jobid = job['job_id']
     user = job['association']['user']
     state = ' '.join(job['state']['current'])
@@ -135,6 +136,8 @@ for job in jobs:
                 if current[key] > peak.get(key, 0):
                     peak[key] = current[key]
                     peak_steps[key] = current_steps.copy()
+
+    # Output starts
     if clusteropts:
         print("Cluster:", clustername)
     print("Job ID:", jobid)
