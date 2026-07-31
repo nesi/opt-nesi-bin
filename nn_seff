@@ -108,10 +108,10 @@ for job in jobs:
             events.append((start, True, step_id, step))
             events.append((end, False, step_id, step))
 
-    # Find peaks over time for mem, and GPU utilisation, summing across any overlapping job steps.
+    # Find peaks over time for mem, ntasks, and GPU utilisation, summing across any overlapping job steps.
     current_steps = {}
-    current = {'mem': 0, 'gpuutil': 0, 'gpumem': 0}
-    peak = {'mem': 0}
+    current = {'ntasks': 0, 'mem': 0, 'gpuutil': 0, 'gpumem': 0}
+    peak = {'ntasks': 0, 'mem': 0}
     peak_steps = {}
     for (when, starting, step_id, step) in sorted(events):
         used = step['tres']['requested']['total']
@@ -122,6 +122,7 @@ for job in jobs:
             current_steps.pop(step_id)
             direction = -1
         for (key, delta) in {
+                'ntasks': (0 if (step_id.endswith('batch') or step_id.endswith('extern'))  else step['tasks']['count']),
                 'mem': ex_tres(used, 'mem', 0) / 1024,
                 'gpuutil': ex_tres(used, 'gpuutil', None),
                 'gpumem': ex_tres(used, 'gpumem', None)}.items():
@@ -137,7 +138,7 @@ for job in jobs:
         print("Array Job ID:", array_jobid)
     print("State:", state)
     print("Cores:", ncores)
-    print("Tasks:", max(step['tasks']['count'] for step in job['steps']))
+    print("Tasks:", peak['ntasks'])
     print("Nodes:", nnodes)
 
     # Walltime and CPU time
