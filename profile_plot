@@ -71,6 +71,7 @@ args = docopt(__doc__)
 params = process_options(args)
 
 file_format = params['file_format']
+file_mode = 'w' if file_format.lower()=='svg' else 'wb'
 if file_format not in {'json', 'html'}:
     import os.path, sys
     if EXTRA_PYTHONPATH and os.path.exists(EXTRA_PYTHONPATH):
@@ -85,7 +86,7 @@ if file_format not in {'json', 'html'}:
     else:
         try:
             # AFAIK altair has no other better way to determine if a suitable vl_convert is present.
-            alt.Chart(alt.Data(values=[{'x':'A', 'y':5}])).mark_point().encode(x='x:N',y='y:Q').save(open('/dev/null', 'wb'), format=file_format)
+            alt.Chart(alt.Data(values=[{'x':'A', 'y':5}])).mark_point().encode(x='x:N',y='y:Q').save(open('/dev/null', file_mode), format=file_format)
         except Exception:
             problem = f'Local altair can not write {file_format} (maybe missing vl_convert)'
     if problem is not None:
@@ -110,7 +111,7 @@ else:
         sacct_id = args['JOBID']
         fn = f'{sacct_id}_profile.{file_format}'
         sys.stderr.write(f'Writing {fn}\n')
-    f = open(fn, 'wb')
+    f = open(fn, file_mode)
 
 if mime_format == file_format:
     f.write(reply.content)
