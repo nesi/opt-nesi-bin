@@ -1,6 +1,6 @@
 #!/bin/python
 """
-Extract raw Slurm job profile data (per-task CPU, Memory, & I/O) into a dataframe file.
+Extract raw Slurm job profile data (per-task CPU, Memory, & I/O) into a file.
 
 Usage:
   profile_data [options] JOBID
@@ -8,12 +8,10 @@ Usage:
 JOBID can be a Slurm job ID or job step ID.
 
 Options:
-  -f, --format=<csv|parquet|feather|pickle>   Output image format [default: csv].
+  -f, --format=<csv|parquet|feather|pickle>   Output format [default: csv].
   -d, --date_format=<epoch|iso>               For text formats such as csv [default: iso].
   -m, --max_timepoints=NUM                    Downsample to no more than this many timestamps [default: 1000].
   -o, --output=FILE                           Output file name. stdout if "-".
-
-If there are too many tasks then only a sample of them will be shown.
 """
 
 import sys
