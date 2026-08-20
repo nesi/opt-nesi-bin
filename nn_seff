@@ -170,7 +170,7 @@ for job in jobs:
 
     # Per-task memory details
     (mem_ntasks, max_mem, min_mem, peak_mem_steps) = (0, 0, 1e12, 0)
-    for (step_id, step) in peak_steps['mem'].items():
+    for (step_id, step) in peak_steps.get('mem', {}).items():
         if ex_tres(step['tres']['requested']['total'], 'mem', 0) < peak['mem']/10:
             continue  # ignore small steps, eg: probably the batch step.
         step_usage = step['tres']['requested']
@@ -179,7 +179,7 @@ for job in jobs:
         max_mem = max(max_mem, ex_tres(step_usage['max'], 'mem', min_mem))
         pernode = ex_tres(step_usage['max'], 'mem', 0, field='task') == -1  # can trust this is constant within a job?
         peak_mem_steps += 1
-    if mem_ntasks == 1:
+    if mem_ntasks < 2:
         print()
     else:
         (denom, desc) = (nnodes, 'node') if pernode else (mem_ntasks, 'task')
