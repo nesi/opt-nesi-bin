@@ -116,7 +116,7 @@ for job in jobs:
     # Find peaks over time for mem, ntasks, and GPU utilisation, summing across any overlapping job steps.
     current_steps = {}
     current = {'ntasks': 0, 'mem': 0, 'gpuutil': 0, 'gpumem': 0}
-    peak = {'ntasks': 0, 'mem': 0}
+    peak = current.copy()
     peak_steps = {}
     for (when, starting, step_id, step) in sorted(events):
         used = step['tres']['requested']['total']
@@ -133,7 +133,7 @@ for job in jobs:
                 'gpumem': ex_tres(used, 'gpumem', None)}.items():
             if delta is not None:
                 current[key] += direction * delta
-                if current[key] > peak.get(key, 0):
+                if current[key] >= peak[key]:
                     peak[key] = current[key]
                     peak_steps[key] = current_steps.copy()
 
@@ -170,7 +170,7 @@ for job in jobs:
 
     # Per-task memory details
     (mem_ntasks, max_mem, min_mem, peak_mem_steps) = (0, 0, 1e12, 0)
-    for (step_id, step) in peak_steps.get('mem', {}).items():
+    for (step_id, step) in peak_steps['mem'].items():
         if ex_tres(step['tres']['requested']['total'], 'mem', 0) < peak['mem']/10:
             continue  # ignore small steps, eg: probably the batch step.
         step_usage = step['tres']['requested']
@@ -190,12 +190,9 @@ for job in jobs:
             print("in each of {} tasks from {} job steps)".format(mem_ntasks, peak_mem_steps))
 
     # GPUs
-    if (gpuutil := peak.get('gpuutil')) is not None:
-        print("Peak GPU Utilisation: {: >3.0f}%".format(gpuutil))
-    if (gpumem := peak.get('gpumem')) is not None:
-        a100_gb = 40 if job['partition'] == 'genoa' else 80
-        alloc = sum(gmem * ex_tres(job['tres']['allocated'], 'gpu:'+kind, 0) for (kind, gmem) in [('l4', 23), ('a100', a100_gb), ('h100', 94)])
-        if alloc:
-            print("Peak GPU Memory Util: {: >3.0f}%  {} of {} GB".format(100*gpumem/(alloc*(1024**3)), kbytes2str(gpumem/1024), alloc))
-        else:
-            print("Peak GPU Memory Util:", " "*8, kbytes2str(gpumem/1024))
+    a100_gb = 40 if job['partition'] == 'genoa' else 80
+    alloc = sum(gmem * ex_tres(job['tres']['allocated'], 'gpu:'+kind, 0) for (kind, gmem) in [('l4', 23), ('a100', a100_gb), ('h100', 94), ('pro_6000', 96)])
+    if alloc or peak['gpuutil']:
+        print("Peak GPU Utilisation: {: >3.0f}%".format(peak['gpuutil']))
+    if alloc or peak['gpumem']:
+        print("Peak GPU Memory Util: {: >3.0f}%  {} of {} GB".format(100*peak['gpumem']/(alloc*(1024**3)), kbytes2str(peak['gpumem']/1024), alloc))
