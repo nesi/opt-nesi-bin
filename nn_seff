@@ -5,6 +5,15 @@
 
 import sys, getopt, json, subprocess
 
+# SITE SPECIFIC FUNCTIONS
+def partition_cpus_per_core(partition):
+    return 2
+
+def partition_gb_per_gpu(partition):
+    a100_gb = 40 if partition == 'genoa' else 80
+    return {'l4':23, 'a100':a100_gb, 'h100':94, 'pro_6000':96}
+
+
 # Convert elapsed time to string.
 def time2str(seconds):
     (minutes, seconds) = divmod(int(seconds), 60)
@@ -82,6 +91,10 @@ for job in jobs:
         print(f"Efficiency not available for {state} jobs.")
         continue
     ncores = (ncpus+1) // 2
+
+    partition = job['partition']
+    cpus_per_core = partition_cpus_per_core(partition)
+    ncores = (ncpus+cpus_per_core-1) // cpus_per_core
 
     clustername = job['cluster']
     nnodes = job['allocation_nodes']
@@ -190,8 +203,8 @@ for job in jobs:
             print("in each of {} tasks from {} job steps)".format(mem_ntasks, peak_mem_steps))
 
     # GPUs
-    a100_gb = 40 if job['partition'] == 'genoa' else 80
-    alloc = sum(gmem * ex_tres(job['tres']['allocated'], 'gpu:'+kind, 0) for (kind, gmem) in [('l4', 23), ('a100', a100_gb), ('h100', 94), ('pro_6000', 96)])
+    gpu_memory = partition_gb_per_gpu(partition)
+    alloc = sum(gmem * ex_tres(job['tres']['allocated'], 'gpu:'+kind, 0) for (kind, gmem) in gpu_memory.items())
     if alloc or peak['gpuutil']:
         print("Peak GPU Utilisation: {: >3.0f}%".format(peak['gpuutil']))
     if alloc or peak['gpumem']:
